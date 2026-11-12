@@ -3,85 +3,79 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 
-class ProductController extends Controller {
-    public function index() {
-        return response()->json([
-            'status' => 'success',
-            'data' => Product::all()
-        ], 200);
-    }
+class ProductController extends Controller
+{
+    public function index(Request $request)
+    {
+        $query = Product::query()->orderBy('name');
 
-    public function show($id) {
-        $product = Product::find($id);
-
-        if (!$product) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Produk tidak ditemukan'
-            ], 404);
+        // Hanya pemilik yang boleh melihat menu nonaktif.
+        if (! ($request->user()->isOwner() && $request->boolean('include_inactive'))) {
+            $query->active();
         }
 
-        return response()->json([
-            'status' => 'success',
-            'data' => $product
-        ], 200);
+        return ApiResponse::success($query->get());
     }
 
-    public function store(Request $request) {
+    public function show(Request $request, int $id)
+    {
+        $product = Product::findOrFail($id);
+
+        if (! $product->is_active && ! $request->user()->isOwner()) {
+            abort(404);
+        }
+
+        return ApiResponse::success($product);
+    }
+
+    public function store(Request $request)
+    {
         $validated = $request->validate([
             'name' => 'required|string|max:100',
-            'price' => 'required|numeric|min:0',
+            'price' => 'required|integer|min:0',
             'stock' => 'required|integer|min:0',
+            'min_stock' => 'sometimes|integer|min:0',
+            'is_active' => 'sometimes|boolean',
         ]);
 
         $product = Product::create($validated);
 
-        return response()->json([
-            'message' => 'Produk berhasil ditambahkan',
-            'data' => $product
-        ], 201);
+        return ApiResponse::success($product->fresh(), 'Menu berhasil ditambahkan', 201);
     }
 
-    public function update(Request $request, $id) {
-        $product = Product::find($id);
-
-        if (!$product) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Produk tidak ditemukan'
-            ], 404);
-        }
+    public function update(Request $request, int $id)
+    {
+        $product = Product::findOrFail($id);
 
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:100',
-            'price' => 'sometimes|required|numeric|min:0',
+            'price' => 'sometimes|required|integer|min:0',
             'stock' => 'sometimes|required|integer|min:0',
+            'min_stock' => 'sometimes|integer|min:0',
+            'is_active' => 'sometimes|boolean',
         ]);
 
         $product->update($validated);
 
-        return response()->json([
-            'message' => 'Produk berhasil diperbarui',
-            'data' => $product
-        ], 200);
+        return ApiResponse::success($product->fresh(), 'Menu berhasil diperbarui');
     }
 
-    public function destroy($id) {
-        $product = Product::find($id);
+    /** KF-05: menu dinonaktifkan, riwayat transaksi tetap utuh. */
+    public function destroy(int $id)
+    {
+        $product = Product::findOrFail($id);
+        $product->update(['is_active' => false]);
 
-        if (!$product) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Produk tidak ditemukan'
-            ], 404);
-        }
+        return ApiResponse::success($product->fresh(), 'Menu dinonaktifkan');
+    }
 
-        $product->delete();
-
-        return response()->json([
-            'message' => 'Produk berhasil dihapus'
-        ], 200);
+    public function lowStock()
+    {
+        return ApiResponse::success(
+            Product::active()->lowStock()->orderBy('stock')->get()
+        );
     }
 }

@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\IndexTransactionRequest;
+use App\Http\Requests\StoreTransactionRequest;
+use App\Http\Resources\TransactionResource;
+use App\Models\Transaction;
 use App\Services\TransactionService;
 use App\Support\ApiResponse;
-use App\Models\Transaction;
-use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Gate;
 
 class TransactionController extends Controller
 {
@@ -14,15 +17,11 @@ class TransactionController extends Controller
     {
     }
 
-    public function store(Request $request)
+    public function store(StoreTransactionRequest $request)
     {
-        $data = $request->validate([
-            'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
-            'items.*.quantity' => 'required|integer|min:1',
-            'pay_amount' => 'required|integer|min:0',
-            'payment_method' => 'required|in:cash,qris',
-        ]);
+        Gate::authorize('create', Transaction::class);
+
+        $data = $request->validated();
 
         $transaction = $this->service->createPos(
             $data['items'],
@@ -31,29 +30,42 @@ class TransactionController extends Controller
             $request->user()->id,
         );
 
-        return ApiResponse::success($transaction, 'Transaksi berhasil diproses', 201);
+        return ApiResponse::success(
+            new TransactionResource($transaction),
+            'Transaksi berhasil diproses',
+            201
+        );
     }
 
-    public function index(Request $request)
+    public function index(IndexTransactionRequest $request)
     {
-        $request->validate(['date' => 'nullable|date_format:Y-m-d']);
+        Gate::authorize('viewAny', Transaction::class);
 
-        $day = Carbon::createFromFormat('!Y-m-d', $request->query('date', now()->toDateString()));
+        $validated = $request->validated();
+        $day = Carbon::createFromFormat('!Y-m-d', $validated['date'] ?? now()->toDateString());
 
-        $transactions = Transaction::query()
+        $query = Transaction::query()
             ->whereBetween('created_at', [$day->copy()->startOfDay(), $day->copy()->endOfDay()])
+            ->with(['details.product', 'user:id,name'])
             ->withCount('details')
-            ->latest()
-            ->get();
+            ->latest();
 
-        return ApiResponse::success($transactions);
+        if ($request->user()->role === 'kasir') {
+            $query->where('user_id', $request->user()->id);
+        }
+
+        return ApiResponse::success(
+            TransactionResource::collection($query->get())
+        );
     }
 
     /** Struk digital satu transaksi. */
     public function show(int $id)
     {
-        return ApiResponse::success(
-            Transaction::with(['details.product', 'user:id,name'])->findOrFail($id)
-        );
+        $transaction = Transaction::with(['details.product', 'user:id,name'])->findOrFail($id);
+
+        Gate::authorize('view', $transaction);
+
+        return ApiResponse::success(new TransactionResource($transaction));
     }
 }

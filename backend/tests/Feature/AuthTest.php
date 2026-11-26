@@ -35,12 +35,12 @@ class AuthTest extends TestCase
 
     public function test_me_returns_profile(): void
     {
-        $user = User::factory()->owner()->create();
+        $user = User::factory()->admin()->create();
         Sanctum::actingAs($user);
 
         $this->getJson('/api/v1/auth/me')
             ->assertOk()
-            ->assertJsonPath('data.role', 'owner');
+            ->assertJsonPath('data.role', 'admin');
     }
 
     public function test_logout_revokes_token(): void

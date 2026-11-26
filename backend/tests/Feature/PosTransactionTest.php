@@ -47,16 +47,16 @@ class PosTransactionTest extends TestCase
         $this->assertSame(0, Transaction::count());
     }
 
-    public function test_owner_cannot_create_pos_transaction(): void
+    public function test_admin_can_create_pos_transaction(): void
     {
-        $product = Product::factory()->create(['stock' => 10]);
-        Sanctum::actingAs(User::factory()->owner()->create());
+        $product = Product::factory()->create(['price' => 10000, 'stock' => 10]);
+        Sanctum::actingAs(User::factory()->admin()->create());
 
         $this->postJson('/api/v1/transactions', [
             'items' => [['product_id' => $product->id, 'quantity' => 1]],
-            'pay_amount' => 99999,
+            'pay_amount' => 20000,
             'payment_method' => 'cash',
-        ])->assertStatus(403);
+        ])->assertStatus(201);
     }
 
     public function test_kasir_can_view_transactions(): void

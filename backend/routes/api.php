@@ -27,7 +27,7 @@ Route::prefix('v1/public')->group(function () {
 */
 
 Route::prefix('v1/auth')->group(function () {
-    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
@@ -37,40 +37,40 @@ Route::prefix('v1/auth')->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| Protected endpoints (kasir & owner, via mobile app)
+| Protected endpoints (kasir & admin, via mobile app / web)
 |--------------------------------------------------------------------------
 */
 
-Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
+Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
 
-    // Products — read: kasir + owner, write: owner only
-    Route::middleware('role:owner')->group(function () {
+    // Products — read: kasir + admin, write: admin only
+    Route::middleware('role:admin')->group(function () {
         Route::get('/products/low-stock', [ProductController::class, 'lowStock']);
         Route::post('/products', [ProductController::class, 'store']);
         Route::put('/products/{id}', [ProductController::class, 'update'])->whereNumber('id');
         Route::delete('/products/{id}', [ProductController::class, 'destroy'])->whereNumber('id');
     });
 
-    Route::middleware('role:kasir,owner')->group(function () {
+    Route::middleware('role:kasir,admin')->group(function () {
         Route::get('/products', [ProductController::class, 'index']);
         Route::get('/products/{id}', [ProductController::class, 'show'])->whereNumber('id');
     });
 
-    // Transactions (POS) — kasir creates, both can view
-    Route::post('/transactions', [TransactionController::class, 'store'])->middleware('role:kasir');
-    Route::middleware('role:kasir,owner')->group(function () {
+    // Transactions (POS) — kasir & admin can create and view
+    Route::middleware('role:kasir,admin')->group(function () {
+        Route::post('/transactions', [TransactionController::class, 'store']);
         Route::get('/transactions', [TransactionController::class, 'index']);
         Route::get('/transactions/{id}', [TransactionController::class, 'show'])->whereNumber('id');
     });
 
-    // Web orders management — kasir & owner
-    Route::middleware('role:kasir,owner')->group(function () {
+    // Web orders management — kasir & admin
+    Route::middleware('role:kasir,admin')->group(function () {
         Route::get('/orders', [OrderController::class, 'index']);
         Route::patch('/orders/{id}/status', [OrderController::class, 'updateStatus'])->whereNumber('id');
     });
 
-    // Reports — owner only
-    Route::middleware('role:owner')->group(function () {
+    // Reports — admin only
+    Route::middleware('role:admin')->group(function () {
         Route::get('/reports/daily', [ReportController::class, 'daily']);
         Route::get('/reports/monthly', [ReportController::class, 'monthly']);
     });

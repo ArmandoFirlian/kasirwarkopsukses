@@ -2,42 +2,53 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ReportRequest;
+use App\Http\Resources\TransactionResource;
 use App\Models\Transaction;
 use App\Models\TransactionDetail;
 use App\Support\ApiResponse;
-use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Gate;
 
 class ReportController extends Controller
 {
     /** KF-14: laporan harian. Hanya transaksi berstatus completed yang dihitung. */
-    public function daily(Request $request)
+    public function daily(ReportRequest $request): JsonResponse
     {
-        $request->validate(['date' => 'nullable|date_format:Y-m-d']);
+        Gate::authorize('viewDailyReport', Transaction::class);
 
-        $date = $request->query('date', now()->toDateString());
+        $validated = $request->validated();
+        $date = $validated['date'] ?? now()->toDateString();
         $day = Carbon::createFromFormat('!Y-m-d', $date);
 
-        $query = Transaction::where('status', Transaction::STATUS_COMPLETED)
+        $baseQuery = Transaction::where('status', Transaction::STATUS_COMPLETED)
             ->whereBetween('created_at', [$day->copy()->startOfDay(), $day->copy()->endOfDay()]);
 
-        return ApiResponse::success([
+        $transactions = (clone $baseQuery)
+            ->with(['details.product', 'user:id,name'])
+            ->latest()
+            ->get();
+
+        return response()->json([
             'date' => $date,
-            'total_omset' => (int) (clone $query)->sum('total_price'),
-            'total_transactions' => (clone $query)->count(),
-            'by_payment_method' => (clone $query)
+            'total_omset' => (int) (clone $baseQuery)->sum('total_price'),
+            'total_transactions' => (clone $baseQuery)->count(),
+            'by_payment_method' => (clone $baseQuery)
                 ->selectRaw('payment_method, COUNT(*) as transactions, SUM(total_price) as omset')
                 ->groupBy('payment_method')
                 ->get(),
+            'transactions' => TransactionResource::collection($transactions)->resolve(),
         ]);
     }
 
     /** KF-16: laporan bulanan berisi omzet dan lima menu terlaris. */
-    public function monthly(Request $request)
+    public function monthly(ReportRequest $request)
     {
-        $request->validate(['month' => 'nullable|date_format:Y-m']);
+        Gate::authorize('viewDailyReport', Transaction::class);
 
-        $month = $request->query('month', now()->format('Y-m'));
+        $validated = $request->validated();
+        $month = $validated['month'] ?? now()->format('Y-m');
         $start = Carbon::createFromFormat('!Y-m', $month)->startOfMonth();
         $end = $start->copy()->endOfMonth();
 

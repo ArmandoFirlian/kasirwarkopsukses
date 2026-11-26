@@ -16,13 +16,13 @@ class DatabaseSeeder extends Seeder
 
     public function run(): void
     {
-        // 1. Akun Autentikasi Kasir & Owner
-        $owner = User::firstOrCreate(
-            ['email' => 'owner@warkop.test'],
+       // 1. Akun Autentikasi Kasir & Admin
+        $admin = User::firstOrCreate(
+            ['email' => 'admin@warkop.test'],
             [
-                'name' => 'Owner Warkop',
+                'name' => 'Admin Warkop',
                 'password' => bcrypt('password'),
-                'role' => 'owner',
+                'role' => User::ROLE_ADMIN,
             ]
         );
 
@@ -31,7 +31,7 @@ class DatabaseSeeder extends Seeder
             [
                 'name' => 'Kasir Warkop',
                 'password' => bcrypt('password'),
-                'role' => 'kasir',
+                'role' => User::ROLE_KASIR,
             ]
         );
 

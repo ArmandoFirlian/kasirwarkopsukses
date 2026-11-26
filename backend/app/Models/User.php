@@ -18,7 +18,7 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, Notifiable;
 
     public const ROLE_KASIR = 'kasir';
-    public const ROLE_OWNER = 'owner';
+    public const ROLE_ADMIN = 'admin';
 
     protected function casts(): array
     {
@@ -28,8 +28,13 @@ class User extends Authenticatable
         ];
     }
 
-    public function isOwner(): bool
+    public function isAdmin(): bool
     {
-        return $this->role === self::ROLE_OWNER;
+        return $this->role === self::ROLE_ADMIN;
+    }
+
+    public function isKasir(): bool
+    {
+        return $this->role === self::ROLE_KASIR;
     }
 }

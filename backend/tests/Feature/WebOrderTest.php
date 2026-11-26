@@ -140,11 +140,11 @@ class WebOrderTest extends TestCase
         $p = Product::factory()->create(['price' => 8000]);
         $this->placeOrder($p, 1);
 
-        Sanctum::actingAs(User::factory()->owner()->create());
+        Sanctum::actingAs(User::factory()->admin()->create());
         $this->getJson('/api/v1/reports/daily')
             ->assertOk()
-            ->assertJsonPath('data.total_omset', 0)
-            ->assertJsonPath('data.total_transactions', 0);
+            ->assertJsonPath('total_omset', 0)
+            ->assertJsonPath('total_transactions', 0);
     }
 
     public function test_order_validation(): void

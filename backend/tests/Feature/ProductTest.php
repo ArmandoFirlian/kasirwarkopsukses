@@ -12,9 +12,9 @@ class ProductTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_owner_can_create_product(): void
+    public function test_admin_can_create_product(): void
     {
-        Sanctum::actingAs(User::factory()->owner()->create());
+        Sanctum::actingAs(User::factory()->admin()->create());
 
         $this->postJson('/api/v1/products', [
             'name' => 'Kopi Baru',
@@ -48,12 +48,12 @@ class ProductTest extends TestCase
             ->assertJsonCount(1, 'data');
     }
 
-    public function test_owner_sees_inactive_products_when_requested(): void
+    public function test_admin_sees_inactive_products_when_requested(): void
     {
         Product::factory()->create(['is_active' => true]);
         Product::factory()->create(['is_active' => false]);
 
-        Sanctum::actingAs(User::factory()->owner()->create());
+        Sanctum::actingAs(User::factory()->admin()->create());
 
         $this->getJson('/api/v1/products?include_inactive=1')
             ->assertOk()
@@ -64,7 +64,7 @@ class ProductTest extends TestCase
     {
         $product = Product::factory()->create(['is_active' => true]);
 
-        Sanctum::actingAs(User::factory()->owner()->create());
+        Sanctum::actingAs(User::factory()->admin()->create());
 
         $this->deleteJson("/api/v1/products/{$product->id}")
             ->assertOk()
@@ -78,7 +78,7 @@ class ProductTest extends TestCase
         Product::factory()->create(['stock' => 3, 'min_stock' => 5]);
         Product::factory()->create(['stock' => 50, 'min_stock' => 5]);
 
-        Sanctum::actingAs(User::factory()->owner()->create());
+        Sanctum::actingAs(User::factory()->admin()->create());
 
         $this->getJson('/api/v1/products/low-stock')
             ->assertOk()

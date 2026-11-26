@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\ApiException;
+use App\Http\Requests\Auth\LoginRequest;
 use App\Models\User;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
@@ -10,12 +11,9 @@ use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
-    public function login(Request $request)
+    public function login(LoginRequest $request)
     {
-        $credentials = $request->validate([
-            'email' => 'required|email',
-            'password' => 'required|string',
-        ]);
+        $credentials = $request->validated();
 
         $user = User::where('email', $credentials['email'])->first();
 
@@ -23,8 +21,10 @@ class AuthController extends Controller
             throw new ApiException('Email atau kata sandi salah', 401);
         }
 
+        $tokenName = $credentials['device_name'] ?? 'mobile';
+
         return ApiResponse::success([
-            'token' => $user->createToken('mobile')->plainTextToken,
+            'token' => $user->createToken($tokenName)->plainTextToken,
             'token_type' => 'Bearer',
             'user' => $this->userPayload($user),
         ], 'Login berhasil');

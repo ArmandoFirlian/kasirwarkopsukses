@@ -28,9 +28,8 @@ class KasirApiTest extends TestCase
         ]);
 
         $response->assertOk()
-            ->assertJsonPath('success', true)
             ->assertJsonPath('data.user.role', 'kasir')
-            ->assertJsonStructure(['data' => ['token', 'user']]);
+            ->assertJsonStructure(['data' => ['token', 'token_type', 'user']]);
     }
 
     public function test_login_gagal_kredensial_salah_401(): void

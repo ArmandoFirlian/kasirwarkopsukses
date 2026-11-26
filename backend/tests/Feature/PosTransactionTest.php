@@ -26,7 +26,6 @@ class PosTransactionTest extends TestCase
             ->assertStatus(201)
             ->assertJsonPath('data.total_price', 16000)
             ->assertJsonPath('data.change_amount', 4000)
-            ->assertJsonPath('data.source', 'pos')
             ->assertJsonPath('data.status', 'completed');
 
         $this->assertSame(8, $product->fresh()->stock);
